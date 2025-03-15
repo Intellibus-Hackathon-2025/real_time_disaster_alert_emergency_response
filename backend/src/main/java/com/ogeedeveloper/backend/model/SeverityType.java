@@ -1,4 +1,4 @@
-package com.ogeedeveloper.backend;
+package com.ogeedeveloper.backend.model;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
