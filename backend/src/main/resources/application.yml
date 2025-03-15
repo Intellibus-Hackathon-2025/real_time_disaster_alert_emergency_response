@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: realtime-emergency-response-alert-system
+
+#  Google Oauth2 Configuration
+  security:
+    oauth2:
+      client:
+        registration:
+            google:
+                clientId: "your-client-id"
+                clientSecret: "your-client-secret"
+                redirectUri: "{baseUrl}/login/oauth2/code/{registrationId}"
+                scope:
+                - email
+                - profile
+
+
+#jWT Configuration
+app:
+  jwt:
+    secret: "super-complex-key-should-go-here@2025"
