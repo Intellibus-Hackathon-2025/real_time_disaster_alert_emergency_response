@@ -6,16 +6,18 @@ services:
     ports:
       - "4000:4000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy  # Wait for Postgres to be healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/realtime-emergency-response-alert-system-db
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+    restart: unless-stopped
     networks:
-      - app-network
+      - realtime-app-network
 
   postgres:
-    image: postgres:latest
+    image: postgres:14  # Specify a version
     ports:
       - "5432:5432"
     environment:
@@ -24,11 +26,17 @@ services:
       POSTGRES_PASSWORD: root
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d realtime-emergency-response-alert-system-db"]  # Check if Postgres is ready
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
     networks:
-      - app-network
+      - realtime-app-network
 
 networks:
-  app-network:
+  realtime-app-network:
     driver: bridge
 
 volumes:
