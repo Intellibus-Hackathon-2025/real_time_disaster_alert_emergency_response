@@ -38,8 +38,10 @@ public class OAuth2LoginSuccessHandler extends SavedRequestAwareAuthenticationSu
     @Autowired
     private RoleRepository roleRepository;
 
-    @Value("${frontend.url}")
-    private String frontendUrl;
+    private String frontendUrl = System.getenv("FRONTEND_URL") != null ?
+            System.getenv("FRONTEND_URL") :
+            "http://localhost:3000";
+
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws ServletException, IOException {

@@ -9,8 +9,10 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${frontend.url}")
-    private String frontendUrl;
+//    @Value("${frontend.url:}")
+private String frontendUrl = System.getenv("FRONTEND_URL") != null ?
+        System.getenv("FRONTEND_URL") :
+        "http://localhost:3000";
 
     @Bean
     public WebMvcConfigurer corsConfigurer() {

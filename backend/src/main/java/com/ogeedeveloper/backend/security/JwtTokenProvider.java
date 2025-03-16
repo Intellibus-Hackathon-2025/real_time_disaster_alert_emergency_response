@@ -2,12 +2,12 @@ package com.ogeedeveloper.backend.security;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.security.core.Authentication;
 import io.jsonwebtoken.security.Keys;
 
-import javax.crypto.SecretKey;
 import java.security.Key;
 import java.util.Date;
 
@@ -18,7 +18,15 @@ public class JwtTokenProvider {
     private String jwtSecret;
 
     @Value("${security.jwt.expiration-time-in-milliseconds}")
-    private long jwtExpirationDate;
+    private Long jwtExpirationDate;
+
+    private Key key;
+
+    @PostConstruct
+    public void init() {
+        byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
+        key = Keys.hmacShaKeyFor(keyBytes);
+    }
 
     // generate JWT token
     public String generateToken(Authentication authentication){
@@ -33,21 +41,22 @@ public class JwtTokenProvider {
                 .setSubject(username)
                 .setIssuedAt(new Date())
                 .setExpiration(expireDate)
-                .signWith(key())
+                .signWith(key)
                 .compact();
 
         return token;
     }
 
-    private Key key(){
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
-    }
+//    private Key key(){
+//        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+//    }
 
     // get username from JWT token
     public String getUsername(String token){
 
-        return Jwts.parser()
-                .setSigningKey((SecretKey) key())
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
                 .parseClaimsJws(token)
                 .getBody()
                 .getSubject();
@@ -56,9 +65,9 @@ public class JwtTokenProvider {
     // validate JWT token
     public boolean validateToken(String token){
         Jwts.parserBuilder()
-                .setSigningKey((SecretKey) key())
+                .setSigningKey(key)
                 .build()
-                .parse(token);
+                .parseClaimsJws(token);
         return true;
 
     }

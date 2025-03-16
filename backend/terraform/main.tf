@@ -23,84 +23,6 @@ resource "aws_subnet" "private" {
   availability_zone = element(data.aws_availability_zones.available.names, count.index)
 }
 
-resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "ecsTaskExecutionRole"
-
-  assume_role_policy = jsonencode({
-    Version   = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ecs-tasks.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_policy" "ecs_task_execution_policy" {
-  name        = "ecsTaskExecutionPolicy"
-  description = "Policy for ECS Task Execution"
-
-  policy = jsonencode({
-    Version   = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = [
-        "ecr:GetAuthorizationToken",
-        "ecr:GetDownloadUrlForLayer",
-        "ecr:BatchGetImage",
-        "ecr:BatchCheckLayerAvailability",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
-      ]
-      Resource = "*"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_attachment" {
-  role       = aws_iam_role.ecs_task_execution_role.name
-  policy_arn = aws_iam_policy.ecs_task_execution_policy.arn
-}
-
-resource "aws_iam_role" "ecs_task_role" {
-  name = "ecsTaskRole"
-
-  assume_role_policy = jsonencode({
-    Version   = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ecs-tasks.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_policy" "ecs_task_policy" {
-  name        = "ecsTaskPolicy"
-  description = "Policy for ECS Task"
-
-  policy = jsonencode({
-    Version   = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = [
-        "s3:*",
-        "dynamodb:*",
-        "sns:*",
-        "sqs:*",
-        "secretsmanager:GetSecretValue",
-        "kms:Decrypt"
-      ]
-      Resource = "*"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_task_role_attachment" {
-  role       = aws_iam_role.ecs_task_role.name
-  policy_arn = aws_iam_policy.ecs_task_policy.arn
-}
-
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 }
@@ -120,7 +42,7 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-# Security group for the load balancer (explicit depends_on removed)
+# Security group for the load balancer
 resource "aws_security_group" "lb" {
   name        = "lb-sg"
   description = "Security group for the load balancer"
@@ -132,7 +54,6 @@ resource "aws_security_group" "lb" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -145,8 +66,7 @@ resource "aws_security_group" "lb" {
   }
 }
 
-
-# Security group for the ECS tasks (explicit depends_on removed)
+# Security group for the ECS tasks
 resource "aws_security_group" "ecs" {
   name        = "ecs-sg"
   description = "Security group for the ECS tasks"
@@ -158,7 +78,6 @@ resource "aws_security_group" "ecs" {
     protocol        = "tcp"
     security_groups = [aws_security_group.lb.id]
   }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -175,6 +94,39 @@ resource "aws_ecs_cluster" "main" {
   name = "ecs-cluster"
 }
 
+##############################
+# ECR and API Docker Image Build/Push
+##############################
+
+resource "aws_ecr_repository" "my_spring_app" {
+  name = "my-spring-app"
+}
+
+resource "null_resource" "build_push_api" {
+  # Update the relative file path to the Dockerfile (e.g., "../Dockerfile" if it's one level above the Terraform directory)
+  triggers = {
+    dockerfile_checksum = sha1(file("../Dockerfile"))
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+      echo "Logging in to ECR..."
+      aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin ${aws_ecr_repository.my_spring_app.repository_url}
+      echo "Building API Docker image..."
+      docker build -t my-spring-app -f ../Dockerfile .
+      echo "Tagging API Docker image..."
+      docker tag my-spring-app:latest ${aws_ecr_repository.my_spring_app.repository_url}:latest
+      echo "Pushing API Docker image to ECR..."
+      docker push ${aws_ecr_repository.my_spring_app.repository_url}:latest
+    EOT
+  }
+}
+
+##############################
+# ECS Task Definitions
+##############################
+
+# Postgres Task Definition (using official image)
 resource "aws_ecs_task_definition" "postgres" {
   family                   = "postgres-task"
   network_mode             = "awsvpc"
@@ -183,75 +135,8 @@ resource "aws_ecs_task_definition" "postgres" {
   memory                   = "512"
 
   container_definitions = jsonencode([{
-    name         = "postgres"
-    image        = "postgres:latest"
-    essential    = true
-    portMappings = [{
-      containerPort = 5432
-      hostPort      = 5432
-    }]
-    environment = [
-      { name = "POSTGRES_DB", value = "realtime-emergency-response-alert-system-db" },
-      { name = "POSTGRES_USER", value = "root" },
-      { name = "POSTGRES_PASSWORD", value = "root" }
-    ]
-    mountPoints = [{
-      sourceVolume  = "postgres-data"
-      containerPath = "/var/lib/postgresql/data"
-    }]
-  }])
-
-  volume {
-    name = "postgres-data"
-    efs_volume_configuration {
-      file_system_id = aws_efs_file_system.postgres.id
-    }
-  }
-}
-
-resource "aws_ecs_task_definition" "kafka" {
-  family                   = "kafka-task"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = "256"
-  memory                   = "512"
-
-  container_definitions = jsonencode([{
-    name      = "kafka"
-    image     = "confluentinc/cp-kafka:latest"
-    essential = true
-    portMappings = [{
-      containerPort = 9092
-      hostPort      = 9092
-    }]
-    environment = [
-      { name = "KAFKA_BROKER_ID", value = "1" },
-      { name = "KAFKA_ZOOKEEPER_CONNECT", value = "zookeeper:2181" },
-      { name = "KAFKA_ADVERTISED_LISTENERS", value = "PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9092" },
-      { name = "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP", value = "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT" },
-      { name = "KAFKA_INTER_BROKER_LISTENER_NAME", value = "PLAINTEXT" },
-      { name = "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR", value = "1" }
-    ]
-  }])
-}
-
-resource "aws_cloudwatch_log_group" "app" {
-  name              = "app-log-group"
-  retention_in_days = 7
-}
-
-resource "aws_ecs_task_definition" "app" {
-  family                   = "app-task"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = "512"
-  memory                   = "1024"
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
-  task_role_arn            = aws_iam_role.ecs_task_role.arn
-
-  container_definitions = jsonencode([{
     name      = "api"
-    image     = "realtime-emergency-response-alert-system:latest"
+    image     = "${aws_ecr_repository.my_spring_app.repository_url}:latest"
     essential = true
     portMappings = [{
       containerPort = 4000
@@ -261,6 +146,9 @@ resource "aws_ecs_task_definition" "app" {
       { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://postgres:5432/realtime-emergency-response-alert-system-db" },
       { name = "SPRING_DATASOURCE_USERNAME", value = "root" },
       { name = "SPRING_DATASOURCE_PASSWORD", value = "root" },
+      { name = "SPRING_JPA_HIBERNATE_DDL_AUTO", value = "update" },
+      { name = "SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT", value = "org.hibernate.dialect.PostgreSQLDialect" },
+      { name = "SPRING_JPA_SHOW_SQL", value = "true" },
       { name = "SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS", value = "kafka:9092" }
     ]
     logConfiguration = {
@@ -274,6 +162,84 @@ resource "aws_ecs_task_definition" "app" {
   }])
 }
 
+# Kafka Task Definition (using official image)
+resource "aws_ecs_task_definition" "kafka" {
+  family                   = "kafka-task"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+
+  container_definitions = jsonencode([{
+    name      = "api"
+    image     = "${aws_ecr_repository.my_spring_app.repository_url}:latest"
+    essential = true
+    portMappings = [{
+      containerPort = 4000
+      hostPort      = 4000
+    }]
+    environment = [
+      { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://postgres:5432/realtime-emergency-response-alert-system-db" },
+      { name = "SPRING_DATASOURCE_USERNAME", value = "root" },
+      { name = "SPRING_DATASOURCE_PASSWORD", value = "root" },
+      { name = "SPRING_JPA_HIBERNATE_DDL_AUTO", value = "update" },
+      { name = "SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT", value = "org.hibernate.dialect.PostgreSQLDialect" },
+      { name = "SPRING_JPA_SHOW_SQL", value = "true" },
+      { name = "SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS", value = "kafka:9092" }
+    ]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = "app-log-group"
+        awslogs-region        = "us-east-2"
+        awslogs-stream-prefix = "app"
+      }
+    }
+  }])
+}
+
+# API Task Definition (using the ECR image we pushed)
+resource "aws_ecs_task_definition" "app" {
+  family                   = "app-task"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "512"
+  memory                   = "1024"
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+
+  container_definitions = jsonencode([{
+    name      = "api"
+    image     = "${aws_ecr_repository.my_spring_app.repository_url}:latest"
+    essential = true
+    portMappings = [{
+      containerPort = 4000
+      hostPort      = 4000
+    }]
+    environment = [
+      { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://postgres:5432/realtime-emergency-response-alert-system-db" },
+      { name = "SPRING_DATASOURCE_USERNAME", value = "root" },
+      { name = "SPRING_DATASOURCE_PASSWORD", value = "root" },
+      { name = "SPRING_JPA_HIBERNATE_DDL_AUTO", value = "update" },
+      { name = "SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT", value = "org.hibernate.dialect.PostgreSQLDialect" },
+      { name = "SPRING_JPA_SHOW_SQL", value = "true" },
+      { name = "SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS", value = "kafka:9092" }
+    ]
+    ,logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = "app-log-group"
+        awslogs-region        = "us-east-2"
+        awslogs-stream-prefix = "app"
+      }
+    }
+  }])
+}
+
+##############################
+# ECS Services
+##############################
+
 resource "aws_ecs_service" "postgres" {
   name            = "postgres-service"
   cluster         = aws_ecs_cluster.main.id
@@ -285,7 +251,6 @@ resource "aws_ecs_service" "postgres" {
     subnets         = aws_subnet.public[*].id
     security_groups = [aws_security_group.ecs.id]
   }
-  depends_on = [aws_efs_mount_target.postgres]
 }
 
 resource "aws_ecs_service" "kafka" {
@@ -324,6 +289,9 @@ resource "aws_ecs_service" "app" {
   }
 }
 
+##############################
+# Load Balancer & Target Group
+##############################
 
 resource "aws_lb" "main" {
   name               = "app-lb"
@@ -364,6 +332,10 @@ resource "aws_lb_listener" "main" {
     target_group_arn = aws_lb_target_group.main.arn
   }
 }
+
+##############################
+# EFS for PostgreSQL (if needed)
+##############################
 
 resource "aws_efs_file_system" "postgres" {
   creation_token = "postgres-efs"

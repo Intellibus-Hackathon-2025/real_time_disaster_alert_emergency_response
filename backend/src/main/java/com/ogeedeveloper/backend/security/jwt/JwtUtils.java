@@ -27,7 +27,7 @@ public class JwtUtils {
     private String jwtSecret;
 
     @Value("${security.jwt.expiration-time-in-milliseconds:}")
-    private int jwtExpirationMs;
+    private String jwtExpirationMs;
 
     public String getJwtFromHeader(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");

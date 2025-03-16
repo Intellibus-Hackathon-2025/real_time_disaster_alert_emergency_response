@@ -2,19 +2,19 @@ spring:
   application:
     name: realtime-emergency-response-alert-system
 
-  datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/realtime-emergency-response-alert-system-db}
-    username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:root}
-    driver-class-name: org.postgresql.Driver
-
-  jpa:
-    hibernate:
-      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
-    properties:
-      hibernate:
-        dialect: ${SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
-    show-sql: ${SPRING_JPA_SHOW_SQL:true}
+#  datasource:
+#    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/realtime-emergency-response-alert-system-db}
+#    username: ${SPRING_DATASOURCE_USERNAME:root}
+#    password: ${SPRING_DATASOURCE_PASSWORD:root}
+#    driver-class-name: org.postgresql.Driver
+#
+#  jpa:
+#    hibernate:
+#      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+#    properties:
+#      hibernate:
+#        dialect: ${SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
+#    show-sql: ${SPRING_JPA_SHOW_SQL:true}
 
   security:
     oauth2:
@@ -32,7 +32,10 @@ spring:
     caffeine:
       spec: maximumSize=10000,expireAfterWrite=6h
 
-# JWT Configuration
+
+  config:
+    activate:
+      on-profile: test
 security:
   jwt:
     secret-key: 3cfa76ef14937c1c0ea519f8fc057a80fcd04a7420f8e8bcd0a7567c272e007b
@@ -80,4 +83,5 @@ social:
       precision: 7
 
 frontend:
-  url: localhost:3000
+  url: "http://localhost:3000"
+
