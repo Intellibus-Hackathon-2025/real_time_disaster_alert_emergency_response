@@ -8,10 +8,12 @@ services:
     depends_on:
       - postgres
     environment:
-      # Update these variables based on your configuration
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/realtime-emergency-response-alert-system-db
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_JPA_SHOW_SQL: "true"
     networks:
       - app-network
 
@@ -27,27 +29,33 @@ services:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - app-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U root -d realtime-emergency-response-alert-system-db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   kafka:
     image: confluentinc/cp-kafka:latest
     ports:
       - "9092:9092"
-      - "9093:9093"  # Controller listener port for KRaft mode
+      - "9093:9093"
     environment:
-      # Enable KRaft mode by setting the process roles (broker and controller)
-      KAFKA_PROCESS_ROLES: "broker,controller"
-      # Unique node id
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
       KAFKA_NODE_ID: 1
-      # Define controller quorum with one node (adjust host/port as needed)
-      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
-      # Define the listeners for both broker and controller
-      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
-      # Advertise the broker listener (clients connect here)
-      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
-      # Specify the controller listener names
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "BROKER"
+      KAFKA_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093,BROKER://:9094"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092,BROKER://kafka:9094"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,BROKER:PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-      # Set the offsets topic replication factor
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka-data:/var/lib/kafka/data
     networks:
       - app-network
 
@@ -57,3 +65,4 @@ networks:
 
 volumes:
   postgres-data:
+  kafka-data:

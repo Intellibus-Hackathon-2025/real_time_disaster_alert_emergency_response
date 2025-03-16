@@ -1,6 +1,7 @@
 package com.ogeedeveloper.backend.kafka;
 
 import com.ogeedeveloper.backend.model.*;
+import com.ogeedeveloper.backend.util.GeoHash;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @Slf4j
@@ -55,7 +57,7 @@ public class EmergencyServiceProducer implements AlertProducer {
                         "Use alternate routes",
                         "Road expected to reopen Tuesday"
                 ))
-                .targetUserTypes(Arrays.asList("CITIZEN", "FIRST_RESPONDER"))
+                .targetUserRoles(Set.of(UserRole.ROLE_USER))
                 .build();
 
         // Evacuation order from emergency management
@@ -80,7 +82,7 @@ public class EmergencyServiceProducer implements AlertProducer {
                         "Bring essential medications and documents",
                         "Evacuees can report to Tupelo High School"
                 ))
-                .targetUserTypes(Arrays.asList(UserRole.ROLE_USER.toString(), UserRole.ROLE_FIRST_RESPONDERS.toString()))
+                .targetUserRoles(Set.of(UserRole.ROLE_FIRST_RESPONDERS))
                 .build();
 
         return Arrays.asList(roadClosureAlert, evacuationAlert);

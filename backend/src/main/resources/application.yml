@@ -2,6 +2,20 @@ spring:
   application:
     name: realtime-emergency-response-alert-system
 
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/realtime-emergency-response-alert-system-db}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:root}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    properties:
+      hibernate:
+        dialect: ${SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
+    show-sql: ${SPRING_JPA_SHOW_SQL:true}
+
   security:
     oauth2:
       client:
@@ -13,6 +27,10 @@ spring:
             scope:
               - email
               - profile
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=6h
 
 # JWT Configuration
 security:
@@ -37,3 +55,26 @@ management:
       enabled: true
     db:
       enabled: true
+
+social:
+  media:
+    twitter:
+      bearer:
+        token: ${TWITTER_BEARER_TOKEN}
+    facebook:
+        app:
+          id: ${FACEBOOK_APP_ID}
+          secret: ${FACEBOOK_APP_SECRET}
+        access:
+          token: ${FACEBOOK_ACCESS_TOKEN}
+    reddit:
+      client:
+        id: ${REDDIT_CLIENT_ID}
+        secret: ${REDDIT_CLIENT_SECRET}
+    emergency:
+      sites: https://www.weather.gov/jan/,https://www.mdot.ms.gov/storm/,https://www.msema.org/news/,https://msdh.ms.gov/alerts
+    minimum:
+      post:
+        treshold: 3
+    geo:
+      precision: 7

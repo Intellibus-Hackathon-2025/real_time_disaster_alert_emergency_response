@@ -1,7 +1,6 @@
 package com.ogeedeveloper.backend.factory;
 
-import com.ogeedeveloper.backend.kafka.AlertProducer;
-import com.ogeedeveloper.backend.kafka.EmergencyServiceProducer;
+import com.ogeedeveloper.backend.kafka.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -10,7 +9,7 @@ import org.springframework.stereotype.Component;
 public class DataSourceFactory {
     private WeatherApiProducer weatherApiProducer;
     private IoTSensorProducer ioTSensorProducer;
-    private SocialMediaProducer socialMediaProducer;
+    private SocialMediaProduce socialMediaProducer;
     private EmergencyServiceProducer emergencyServiceProducer;
 
     public AlertProducer getProducer(String sourceType) {

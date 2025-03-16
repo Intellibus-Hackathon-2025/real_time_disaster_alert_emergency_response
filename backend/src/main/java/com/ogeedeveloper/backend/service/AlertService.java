@@ -1,10 +1,9 @@
 package com.ogeedeveloper.backend.service;
 
-import com.ogeedeveloper.backend.model.Alert;
-import com.ogeedeveloper.backend.model.AlertNotification;
-import com.ogeedeveloper.backend.model.GeoPoint;
-import com.ogeedeveloper.backend.model.UserLocation;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.ogeedeveloper.backend.model.*;
+import com.ogeedeveloper.backend.util.GeoHash;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -12,15 +11,17 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class AlertService {
     // In a real application, these would be stored in a database
     private final Map<Long, Alert> activeAlerts = new HashMap<>();
     private final Map<String, UserLocation> userLocations = new HashMap<>();
 
-    @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
     public void processAndNotifyUsers(Alert alert) {
@@ -41,7 +42,10 @@ public class AlertService {
         if (userLocation.getGeoHash() == null) {
             GeoPoint location = userLocation.isOnTheMove() ?
                     userLocation.getCurrentLocation() : userLocation.getPermanentAddress();
-            userLocation.setGeoHash(GeoHash.encodeHash(location.getLatitude(), location.getLongitude(), 7));
+
+            if (location != null) {
+                userLocation.setGeoHash(GeoHash.encodeHash(location.getLatitude(), location.getLongitude(), 7));
+            }
         }
 
         // Update stored user location
@@ -58,16 +62,22 @@ public class AlertService {
 
     private List<UserLocation> findAffectedUsers(Alert alert) {
         String alertGeoHash = alert.getGeoHash();
-        List<String> targetUserTypes = alert.getTargetUserTypes();
+        Set<UserRole> targetUserRoles = alert.getTargetUserRoles();
 
-        // Find matching users based on geohash prefix (affected area)
-        // Usually we'd want to check if user's geohash starts with the alert's geohash prefix
-        // or use a more sophisticated spatial matching algorithm
-        int prefixLength = Math.min(4, alertGeoHash.length()); // Use first 4 chars as prefix
+        // Use the first 4 characters of the geohash as a prefix for a wider area match
+        int prefixLength = Math.min(4, alertGeoHash.length());
         String geoHashPrefix = alertGeoHash.substring(0, prefixLength);
 
         return userLocations.values().stream()
-                .filter(user -> targetUserTypes.contains(user.getUserType()))
+                .filter(user -> {
+                    try {
+                        // Convert the userType string to a UserRole enum before checking
+                        return targetUserRoles.contains(UserRole.valueOf(user.getUserType()));
+                    } catch (IllegalArgumentException e) {
+                        // If conversion fails, exclude the user
+                        return false;
+                    }
+                })
                 .filter(user -> user.getGeoHash() != null && user.getGeoHash().startsWith(geoHashPrefix))
                 .collect(Collectors.toList());
     }
@@ -75,11 +85,23 @@ public class AlertService {
     private List<Alert> findRelevantAlerts(UserLocation userLocation) {
         String userGeoHash = userLocation.getGeoHash();
 
-        // Find alerts that affect this user's location and type
+        if (userGeoHash == null) {
+            return List.of(); // Can't match without geohash
+        }
+
+        UserRole userRole;
+        try {
+            userRole = UserRole.valueOf(userLocation.getUserType());
+        } catch (IllegalArgumentException e) {
+            // If conversion fails, no alerts are relevant
+            return List.of();
+        }
+
+        // Find alerts that affect this user's location and role
         return activeAlerts.values().stream()
-                .filter(alert -> alert.getTargetUserTypes().contains(userLocation.getUserType()))
+                .filter(alert -> alert.getTargetUserRoles().contains(userRole))
                 .filter(alert -> {
-                    // Compare geohash prefixes to determine if user is in affected area
+                    // Compare geohash prefixes to determine if the user is in the affected area
                     int prefixLength = Math.min(4, alert.getGeoHash().length());
                     String alertPrefix = alert.getGeoHash().substring(0, prefixLength);
                     return userGeoHash.startsWith(alertPrefix);

@@ -1,14 +1,14 @@
 package com.ogeedeveloper.backend.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class UserLocation {
     private String userId;
     private String userType; // CITIZEN, FIRST_RESPONDER

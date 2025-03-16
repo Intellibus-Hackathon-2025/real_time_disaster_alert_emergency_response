@@ -1,9 +1,7 @@
 package com.ogeedeveloper.backend.kafka;
 
-import com.ogeedeveloper.backend.model.Alert;
-import com.ogeedeveloper.backend.model.AlertType;
-import com.ogeedeveloper.backend.model.GeoPoint;
-import com.ogeedeveloper.backend.model.SeverityType;
+import com.ogeedeveloper.backend.model.*;
+import com.ogeedeveloper.backend.util.GeoHash;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -13,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -64,7 +63,7 @@ public class IoTSensorProducer implements AlertProducer{
                         "Be prepared for possible evacuation",
                         "Move valuables to higher ground"
                 ))
-                .targetUserTypes(Arrays.asList("CITIZEN", "FIRST_RESPONDER"))
+                .targetUserRoles(Set.of(UserRole.ROLE_FIRST_RESPONDERS, UserRole.ROLE_USER))
                 .build();
 
         return Arrays.asList(waterLevelAlert);
@@ -74,5 +73,4 @@ public class IoTSensorProducer implements AlertProducer{
     public String getSourceType() {
         return SOURCE_TYPE;
     }
-}
 }

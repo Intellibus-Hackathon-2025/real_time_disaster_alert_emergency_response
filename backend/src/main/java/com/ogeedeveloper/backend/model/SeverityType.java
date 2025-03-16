@@ -7,10 +7,10 @@ import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
+@Entity  // Now marked as an entity so that Hibernate can manage it.
 public class SeverityType {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,8 +18,7 @@ public class SeverityType {
     private String name;
     private String description;
 
-
-    // Helper method to get common severity types
+    // Helper methods to obtain common severity types.
     public static SeverityType informational() {
         return new SeverityType(0, "Informational", "General notifications or updates; no immediate action required.");
     }
