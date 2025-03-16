@@ -2,6 +2,7 @@ spring:
   application:
     name: realtime-emergency-response-alert-system
 
+
 #  Google Oauth2 Configuration
   security:
     oauth2:
@@ -14,9 +15,17 @@ spring:
                 scope:
                 - email
                 - profile
+#  datasource:
+#    url: "jdbc://localhost:5000/realtime-emergency-response-alert-system-db"
+#    username: root
+#    password: root
 
 
 #jWT Configuration
 app:
   jwt:
     secret: "super-complex-key-should-go-here@2025"
+app-jwt-expiration-milliseconds: 600000
+
+server:
+  port: 4000
