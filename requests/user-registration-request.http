@@ -1,0 +1,13 @@
+### POST request to register a user
+POST http://localhost:4000/api/v1/users/register
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "password": "SecurePassword123",
+  "username": "johndoe",
+  "email": "johndoe@example.com",
+  "permanentAddress": "1234 Elm Street, Springfield, IL, USA"
+}
+###
