@@ -27,16 +27,12 @@ resource "aws_iam_role" "ecs_task_execution_role" {
   name = "ecsTaskExecutionRole"
 
   assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect    = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      }
-    ]
+    Version   = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ecs-tasks.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
   })
 }
 
@@ -45,21 +41,19 @@ resource "aws_iam_policy" "ecs_task_execution_policy" {
   description = "Policy for ECS Task Execution"
 
   policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = [
-          "ecr:GetAuthorizationToken",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage",
-          "ecr:BatchCheckLayerAvailability",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = "*"
-      }
-    ]
+    Version   = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = [
+        "ecr:GetAuthorizationToken",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:BatchCheckLayerAvailability",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ]
+      Resource = "*"
+    }]
   })
 }
 
@@ -72,16 +66,12 @@ resource "aws_iam_role" "ecs_task_role" {
   name = "ecsTaskRole"
 
   assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect    = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      }
-    ]
+    Version   = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ecs-tasks.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
   })
 }
 
@@ -90,21 +80,19 @@ resource "aws_iam_policy" "ecs_task_policy" {
   description = "Policy for ECS Task"
 
   policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = [
-          "s3:*",
-          "dynamodb:*",
-          "sns:*",
-          "sqs:*",
-          "secretsmanager:GetSecretValue",
-          "kms:Decrypt"
-        ]
-        Resource = "*"
-      }
-    ]
+    Version   = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = [
+        "s3:*",
+        "dynamodb:*",
+        "sns:*",
+        "sqs:*",
+        "secretsmanager:GetSecretValue",
+        "kms:Decrypt"
+      ]
+      Resource = "*"
+    }]
   })
 }
 
@@ -132,13 +120,12 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-# Security group for the load balancer
+# Security group for the load balancer (explicit depends_on removed)
 resource "aws_security_group" "lb" {
   name        = "lb-sg"
   description = "Security group for the load balancer"
   vpc_id      = aws_vpc.main.id
 
-  # Allow inbound HTTP traffic from anywhere
   ingress {
     from_port   = 80
     to_port     = 80
@@ -146,35 +133,41 @@ resource "aws_security_group" "lb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Allow all outbound traffic
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
-# Security group for the ECS tasks
+
+# Security group for the ECS tasks (explicit depends_on removed)
 resource "aws_security_group" "ecs" {
   name        = "ecs-sg"
   description = "Security group for the ECS tasks"
   vpc_id      = aws_vpc.main.id
 
-  # Allow inbound traffic from the load balancer on port 4000
   ingress {
-    from_port   = 4000
-    to_port     = 4000
-    protocol    = "tcp"
+    from_port       = 4000
+    to_port         = 4000
+    protocol        = "tcp"
     security_groups = [aws_security_group.lb.id]
   }
 
-  # Allow all outbound traffic
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
@@ -190,9 +183,9 @@ resource "aws_ecs_task_definition" "postgres" {
   memory                   = "512"
 
   container_definitions = jsonencode([{
-    name      = "postgres"
-    image     = "postgres:latest"
-    essential = true
+    name         = "postgres"
+    image        = "postgres:latest"
+    essential    = true
     portMappings = [{
       containerPort = 5432
       hostPort      = 5432
@@ -244,15 +237,15 @@ resource "aws_ecs_task_definition" "kafka" {
 
 resource "aws_cloudwatch_log_group" "app" {
   name              = "app-log-group"
-  retention_in_days = 7 # Retain logs for 7 days
+  retention_in_days = 7
 }
 
 resource "aws_ecs_task_definition" "app" {
   family                   = "app-task"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = "512" # Increased CPU
-  memory                   = "1024" # Increased Memory
+  cpu                      = "512"
+  memory                   = "1024"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
@@ -325,7 +318,12 @@ resource "aws_ecs_service" "app" {
     container_name   = "api"
     container_port   = 4000
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
+
 
 resource "aws_lb" "main" {
   name               = "app-lb"
@@ -333,6 +331,10 @@ resource "aws_lb" "main" {
   load_balancer_type = "application"
   security_groups    = [aws_security_group.lb.id]
   subnets            = aws_subnet.public[*].id
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_lb_target_group" "main" {
@@ -346,8 +348,8 @@ resource "aws_lb_target_group" "main" {
     protocol            = "HTTP"
     healthy_threshold   = 5
     unhealthy_threshold = 2
-    interval            = 60 # Increased interval
-    timeout             = 10 # Increased timeout
+    interval            = 60
+    timeout             = 10
     matcher             = "200"
   }
 }

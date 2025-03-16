@@ -78,3 +78,6 @@ social:
         treshold: 3
     geo:
       precision: 7
+
+frontend:
+  url: localhost:3000

@@ -46,4 +46,9 @@ public class UserService {
         userRepository.save(user);
         return new RegistrationResponseDto();
     }
+
+//    create findByEmil method
+    public User findByEmail(String email) {
+        return userRepository.findUserByEmail(email).orElseThrow(() -> new IllegalArgumentException("User not found"));
+    }
 }
