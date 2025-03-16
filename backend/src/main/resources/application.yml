@@ -2,30 +2,24 @@ spring:
   application:
     name: realtime-emergency-response-alert-system
 
-
-#  Google Oauth2 Configuration
   security:
     oauth2:
       client:
         registration:
-            google:
-                clientId: "your-client-id"
-                clientSecret: "your-client-secret"
-                redirectUri: "{baseUrl}/login/oauth2/code/{registrationId}"
-                scope:
-                - email
-                - profile
-#  datasource:
-#    url: "jdbc://localhost:5000/realtime-emergency-response-alert-system-db"
-#    username: root
-#    password: root
+          google:
+            clientId: "your-client-id"
+            clientSecret: "your-client-secret"
+            redirectUri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope:
+              - email
+              - profile
 
-
-#jWT Configuration
-app:
+# JWT Configuration
+security:
   jwt:
-    secret: "super-complex-key-should-go-here@2025"
-app-jwt-expiration-milliseconds: 600000
+    secret-key: 3cfa76ef14937c1c0ea519f8fc057a80fcd04a7420f8e8bcd0a7567c272e007b
+    # 1h in millisecond
+    expiration-time-in-milliseconds: 3600000
 
 server:
   port: 4000

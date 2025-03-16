@@ -1,31 +1,28 @@
+# Build Stage
 FROM maven:3.9.9-eclipse-temurin-21-alpine AS builder
 LABEL authors="ogeedeveloper"
 
-# Specifiy working directory
+# Set working directory
 WORKDIR /app
 
+# Copy Maven dependencies
 COPY pom.xml .
-
-# Download dependencies
 RUN mvn -B dependency:go-offline
 
-# Copy source code
+# Copy source code and build
 COPY src ./src
+RUN mvn clean package -DskipTests
 
-# Build the application
-RUN mvn clean package
-
-# Instruction to run the build application
+# Runtime Stage
 FROM openjdk:21-jdk AS runner
 
-# Specifiy working directory
 WORKDIR /app
 
-# Copy the build artifact from the builder image
-COPY --from=builder /app/target/realtime-emergency-response-alert-system-0.0.1-SNAPSHOT.jar .
+# Copy built JAR from builder
+COPY --from=builder /app/target/realtime-emergency-response-alert-system-0.0.1-SNAPSHOT.jar app.jar
 
-# Export the port
-EXPOSE 4002
+# Expose port
+EXPOSE 4000
 
-# Run the application
-ENTRYPOINT ["java", "-jar", "realtime-emergency-response-alert-system-0.0.1-SNAPSHOT.jar"]
+# Run application
+ENTRYPOINT ["java", "-jar", "app.jar"]

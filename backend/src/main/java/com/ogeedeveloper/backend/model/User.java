@@ -2,30 +2,42 @@ package com.ogeedeveloper.backend.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 
 @Entity
 @Data
-
-public class User {
-@Id
-@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Table(name = "users")
+public class User implements UserDetails {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(nullable = false)
     private Long id;
 
-    private String First_name;
+    @Column(nullable = false)
+    private String firstName;
 
-    private String Last_name;
+    @Column(nullable = false)
+    private String lastName;
 
-    private String Email;
+    @Column(nullable = false)
+    private String username;
 
-    private String Phone_number;
+    @Column(unique = true, length = 100, nullable = false)
+    private String email;
 
-    private String Password;
+    private String phoneNumber;
 
-    private String permanent_address;
+    @Column(nullable = false)
+    private String password;
 
-    private String live_address;
+    private String permanentAddress;
+
+    private String liveAddress;
     private String provider;
 
 //    Role: One to many, one user can have multiple roles
@@ -37,4 +49,13 @@ public class User {
     )
     private Set<Role> roles;
 
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of();
+    }
+
+    @Override
+    public String getUsername() {
+        return getUsername();
+    }
 }
