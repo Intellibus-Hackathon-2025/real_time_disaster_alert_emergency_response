@@ -28,6 +28,29 @@ services:
     networks:
       - app-network
 
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    ports:
+      - "9092:9092"
+      - "9093:9093"  # Controller listener port for KRaft mode
+    environment:
+      # Enable KRaft mode by setting the process roles (broker and controller)
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      # Unique node id
+      KAFKA_NODE_ID: 1
+      # Define controller quorum with one node (adjust host/port as needed)
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      # Define the listeners for both broker and controller
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+      # Advertise the broker listener (clients connect here)
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      # Specify the controller listener names
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      # Set the offsets topic replication factor
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge

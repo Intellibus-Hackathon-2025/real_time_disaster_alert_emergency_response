@@ -23,3 +23,17 @@ security:
 
 server:
   port: 4000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+  health:
+    kafka:
+      enabled: true
+    db:
+      enabled: true
