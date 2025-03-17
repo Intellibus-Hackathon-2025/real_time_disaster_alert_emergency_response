@@ -31,3 +31,17 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Terraform state files
+*.tfstate
+*.tfstate.backup
+
+# Terraform lock file
+.terraform.lock.hcl
+
+# Ignore Terraform working directory
+.terraform/
+
+# Ignore sensitive variable files (if any)
+*.tfvars
+*.tfvars.json
